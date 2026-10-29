@@ -85,7 +85,7 @@ main() {
     --env-file "$APP_DIR/service.env" \
     -v "$APP_DIR/data:/opt/app/data" "$IMAGE"
 
-  for attempt in {1..30}; do
+  for ((attempt=1; attempt<=30; attempt++)); do
     if curl --noproxy '*' -fsS --max-time 3 \
       "http://127.0.0.1:$PORT/$token/api/utils/env" >/dev/null 2>&1; then
       ready=1
