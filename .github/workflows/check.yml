@@ -1,0 +1,51 @@
+name: Check installer
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check Bash syntax and ShellCheck
+        run: |
+          bash -n install.sh
+          shellcheck install.sh
+  container-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    steps:
+      - name: Start upstream image with installer settings
+        shell: bash
+        run: |
+          token=$(openssl rand -hex 24)
+          echo "SUBSTORE_TEST_TOKEN=$token" >> "$GITHUB_ENV"
+          docker run -d --name sub-store --restart unless-stopped \
+            -p 127.0.0.1:3001:3001 \
+            -e SUB_STORE_BACKEND_API_HOST=127.0.0.1 \
+            -e SUB_STORE_FRONTEND_HOST=0.0.0.0 \
+            -e "SUB_STORE_FRONTEND_BACKEND_PATH=/$token" \
+            -e SUB_STORE_CORS_ALLOWED_ORIGINS=http://127.0.0.1:3001 \
+            xream/sub-store:latest
+      - name: Check frontend and protected backend route
+        shell: bash
+        run: |
+          ready=0
+          for attempt in {1..45}; do
+            if curl -fsS --max-time 3 "http://127.0.0.1:3001/$SUBSTORE_TEST_TOKEN/api/utils/env" -o /tmp/substore-env.json; then
+              ready=1
+              break
+            fi
+            sleep 2
+          done
+          test "$ready" = 1
+          python3 -c 'import json; json.load(open("/tmp/substore-env.json"))'
+          curl -fsS --max-time 10 http://127.0.0.1:3001/ -o /tmp/substore-front.html
+          grep -qi '<html' /tmp/substore-front.html
+          test -z "$(docker port sub-store 3000/tcp 2>/dev/null || true)"
+      - name: Container logs on failure
+        if: failure()
+        run: docker logs --tail 80 sub-store
