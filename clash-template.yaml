@@ -1,0 +1,43 @@
+# Replace the URL below with the Mihomo / Clash Meta subscription exported by Sub-Store.
+# Import this complete file as a LOCAL profile in Clash Verge Rev.
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+
+proxy-providers:
+  my-nodes:
+    type: http
+    url: "REPLACE_WITH_SUB_STORE_MIHOMO_URL"
+    path: ./providers/my-nodes.yaml
+    interval: 3600
+    health-check:
+      enable: true
+      url: https://www.gstatic.com/generate_204
+      interval: 600
+
+proxy-groups:
+  - name: 节点选择
+    type: select
+    proxies:
+      - 自动选择
+      - DIRECT
+    use:
+      - my-nodes
+  - name: 自动选择
+    type: url-test
+    use:
+      - my-nodes
+    url: https://www.gstatic.com/generate_204
+    interval: 600
+    tolerance: 100
+
+rules:
+  - IP-CIDR,127.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+  - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+  - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+  - IP-CIDR6,::1/128,DIRECT,no-resolve
+  - IP-CIDR6,fc00::/7,DIRECT,no-resolve
+  - IP-CIDR6,fe80::/10,DIRECT,no-resolve
+  - MATCH,节点选择

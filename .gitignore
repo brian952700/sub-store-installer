@@ -1,0 +1,5 @@
+service.env
+access.txt
+data/
+*.log
+*.backup
